@@ -1,7 +1,6 @@
-import { app, polling } from './routes/api.js';
+import { app, fetchTickers } from './routes/api.js';
 import { initTelegram } from './services/telegram.js';
 import { signalDb } from './services/database.js';
-import type { Signal } from './types/index.js';
 import { mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -23,18 +22,21 @@ async function main() {
   await signalDb.init();
   console.log('[DB] SQLite ready');
 
-  polling.start(5000);
-  console.log('[POLLING] Binance HTTP polling started');
-
   const server = http.createServer(app);
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[HTTP] Server on http://0.0.0.0:${PORT}`);
+  server.listen(PORT, '0.0.0.0', async () => {
+    console.log(`[HTTP] Server on port ${PORT}`);
+    console.log('[POLLING] Starting Binance ticker polling...');
+    await fetchTickers();
   });
+
+  setInterval(async () => {
+    console.log('[POLLING] Refreshing tickers...');
+    await fetchTickers();
+  }, 15000);
 
   process.on('SIGINT', () => {
     console.log('\nShutting down...');
-    polling.stop();
     server.close();
     process.exit(0);
   });

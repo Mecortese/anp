@@ -2,64 +2,80 @@ import axios from 'axios';
 
 const BINANCE_API = 'https://api.binance.com/api/v3/ticker/24hr';
 
-interface TickerData {
-  symbol: string;
-  price: number;
-  change24h: number;
-  volume24h: number;
-  high24h: number;
-  low24h: number;
-}
-
 const SYMBOLS = [
   'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
   'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'MATICUSDT',
-  'LINKUSDT', 'LTCUSDT', 'UNIUSDT', 'ATOMUSDT', 'ETCUSDT',
-  'XLMUSDT', 'NEARUSDT', 'ALGOUSDT', 'MKRUSDT', 'AAVEUSDT'
+  'LINKUSDT', 'LTCUSDT', 'ATOMUSDT', 'UNIUSDT', 'ETCUSDT'
 ];
 
-export class BinancePolling {
-  private interval: NodeJS.Timeout | null = null;
-  private onTick: (tickers: TickerData[]) => void;
+interface TickerData {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+}
 
-  constructor(onTick: (tickers: TickerData[]) => void) {
-    this.onTick = onTick;
-  }
+let cachedTickers: TickerData[] = [];
+let lastUpdate = 0;
+let pollingError = '';
+let fetchInProgress = false;
 
-  start(intervalMs = 5000): void {
-    console.log('[BinancePolling] Starting HTTP polling every', intervalMs, 'ms');
-    this.fetchTickers();
-    this.interval = setInterval(() => this.fetchTickers(), intervalMs);
-  }
-
-  private async fetchTickers(): Promise<void> {
-    try {
-      const symbolsParam = SYMBOLS.join(',');
-      const response = await axios.get(BINANCE_API, {
-        params: { symbols: `[${SYMBOLS.map(s => `"${s}"`).join(',')}]` },
-        headers: { 'Accept': 'application/json' }
-      });
-
-      const tickers: TickerData[] = response.data.map((item: any) => ({
-        symbol: item.symbol,
-        price: parseFloat(item.lastPrice),
-        change24h: parseFloat(item.priceChangePercent),
-        volume24h: parseFloat(item.quoteVolume),
-        high24h: parseFloat(item.highPrice),
-        low24h: parseFloat(item.lowPrice)
-      }));
-
-      this.onTick(tickers);
-    } catch (error) {
-      console.error('[BinancePolling] Error fetching tickers:', error);
+export async function fetchTickers(): Promise<TickerData[]> {
+  if (fetchInProgress) return cachedTickers;
+  fetchInProgress = true;
+  
+  try {
+    const results: TickerData[] = [];
+    
+    for (const symbol of SYMBOLS) {
+      try {
+        const response = await axios.get(BINANCE_API, {
+          params: { symbol },
+          timeout: 5000
+        });
+        
+        const data = response.data;
+        results.push({
+          symbol: data.symbol,
+          name: data.symbol.replace('USDT', ''),
+          price: parseFloat(data.lastPrice) || 0,
+          change24h: parseFloat(data.priceChangePercent) || 0,
+          volume24h: parseFloat(data.quoteVolume) || 0
+        });
+      } catch (e: any) {
+        console.error(`[Polling] Error fetching ${symbol}:`, e?.message || e);
+      }
     }
+    
+    cachedTickers = results;
+    lastUpdate = Date.now();
+    pollingError = '';
+    console.log(`[Polling] Got ${results.length} tickers at ${new Date().toISOString()}`);
+    return cachedTickers;
+  } catch (error: any) {
+    pollingError = error.message;
+    console.error('[Polling] Error:', error.message);
+    return cachedTickers;
+  } finally {
+    fetchInProgress = false;
   }
+}
 
-  stop(): void {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
-      console.log('[BinancePolling] Stopped');
-    }
-  }
+export function getTickers(): TickerData[] {
+  return cachedTickers;
+}
+
+export function getPollingStatus() {
+  return {
+    lastUpdate,
+    error: pollingError,
+    count: cachedTickers.length
+  };
+}
+
+export async function startPolling(intervalMs = 15000): Promise<void> {
+  console.log('[Polling] Starting with interval:', intervalMs);
+  await fetchTickers();
+  setInterval(fetchTickers, intervalMs);
 }
