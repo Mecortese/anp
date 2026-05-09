@@ -1,16 +1,12 @@
-# Railway Configuration
-
-# Build Command for backend
-BACKEND_BUILD_COMMAND="cd backend && npm install && npm run build"
-# Start Command for backend
-BACKEND_START_COMMAND="cd backend && npm start"
-# Port for backend
-BACKEND_PORT=3000
-
-# Build Command for frontend
-FRONTEND_BUILD_COMMAND="cd frontend && npm install && npm run build"
-# Output Directory for frontend
-FRONTEND_DIST="../public"
-
-# Note: For a monorepo on Railway, you'll need separate services or use a custom Dockerfile
-# Recommendation: Deploy backend and frontend as separate Railway services
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "nixpacksJsonFile": "package.json"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
