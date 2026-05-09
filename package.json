@@ -1,10 +1,9 @@
 {
-  "name": "crypto-signals-api",
+  "name": "crypto-signals",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Crypto trading signals with real-time streaming",
   "scripts": {
-    "setup": "npm install && npm run build",
-    "dev": "npm run build && npm start",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

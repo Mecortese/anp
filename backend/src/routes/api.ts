@@ -47,11 +47,6 @@ app.get('/api/assets', (req, res) => {
   res.json(Array.from(assets.values()));
 });
 
-app.get('/api/assets/:symbol', (req, res) => {
-  const symbol = req.params.symbol.toUpperCase();
-  res.json(assets.get(symbol) || null);
-});
-
 app.get('/api/commodities', async (req, res) => {
   try {
     const commodities = await commodityService.getAllCommodities();

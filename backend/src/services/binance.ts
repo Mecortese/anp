@@ -23,7 +23,6 @@ export class BinanceWebSocket extends EventEmitter {
   private maxReconnectAttempts = 10;
   private reconnectDelay = 3000;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private subscribedStreams: Set<string> = new Set();
 
   constructor(symbols: string[] = []) {
     super();
@@ -99,7 +98,8 @@ export class BinanceWebSocket extends EventEmitter {
       high: parseFloat(data.k.h),
       low: parseFloat(data.k.l),
       close: parseFloat(data.k.c),
-      volume: parseFloat(data.k.v)
+      volume: parseFloat(data.k.v),
+      isClosed: data.k.x
     };
   }
 
@@ -130,17 +130,6 @@ export class BinanceWebSocket extends EventEmitter {
     setTimeout(() => this.connect(), this.reconnectDelay);
   }
 
-  addSymbol(symbol: string): void {
-    if (!this.symbols.includes(symbol.toLowerCase())) {
-      this.symbols.push(symbol.toLowerCase());
-    }
-  }
-
-  removeSymbol(symbol: string): void {
-    this.symbols = this.symbols.filter(s => s !== symbol.toLowerCase());
-    this.subscribedStreams.delete(symbol.toLowerCase());
-  }
-
   disconnect(): void {
     this.stopHeartbeat();
     if (this.ws) {
@@ -163,9 +152,5 @@ export const SYMBOLS = {
     'adausdt', 'dogeusdt', 'avaxusdt', 'dotusdt', 'maticusdt',
     'linkusdt', 'ltcusdt', 'uniusdt', 'atomusdt', 'etcusdt',
     'xlmusdt', 'nearusdt', 'algousdt', 'mkrusdt', 'aaveusdt'
-  ],
-  COMMODITIES: {
-    'XAUUSD': { name: 'Gold', source: 'forex' },
-    'XTIUSD': { name: 'Crude Oil', source: 'forex' }
-  }
+  ]
 };

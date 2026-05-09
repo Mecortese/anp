@@ -5,7 +5,7 @@ import { initTelegram } from './services/telegram.js';
 import { signalDb } from './services/database.js';
 import type { Signal } from './types/index.js';
 
-const PORT = process.env.PORT || 3003;
+const PORT = parseInt(process.env.PORT || '3000');
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 
@@ -101,9 +101,9 @@ async function main() {
 
   engine.start();
 
-  app.listen(PORT, () => {
-    console.log(`[HTTP] Server on http://localhost:${PORT}`);
-    console.log(`[WS] WebSocket on ws://localhost:8080`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[HTTP] Server on port ${PORT}`);
+    console.log(`[WS] WebSocket on ws://0.0.0.0:8080`);
   });
 
   process.on('SIGINT', () => {

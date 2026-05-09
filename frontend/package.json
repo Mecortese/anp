@@ -1,7 +1,7 @@
 {
-  "name": "crypto-signals-frontend",
+  "name": "crypto-signals",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Crypto trading signals dashboard",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

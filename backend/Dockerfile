@@ -3,11 +3,11 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --only=production
 
-COPY . .
-RUN npm run build
+COPY dist ./dist
+COPY data ./data
 
 EXPOSE 3000 8080
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "node dist/index.js"]

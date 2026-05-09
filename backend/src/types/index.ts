@@ -5,6 +5,7 @@ export interface Kline {
   low: number;
   close: number;
   volume: number;
+  isClosed?: boolean;
 }
 
 export interface Indicator {

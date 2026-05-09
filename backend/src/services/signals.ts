@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type { Signal, Kline, TechnicalIndicators, Asset } from '../types/index.js';
+import type { Signal, Kline, TechnicalIndicators } from '../types/index.js';
 import { TechnicalAnalyzer } from './indicators.js';
 import { BinanceWebSocket, SYMBOLS } from './binance.js';
 
@@ -8,13 +8,15 @@ interface SignalConfig {
   maxRSI: number;
   minConfidence: number;
   atrMultiplier: number;
+  signalCooldown: number;
 }
 
 const DEFAULT_CONFIG: SignalConfig = {
   minRSI: 25,
   maxRSI: 75,
   minConfidence: 65,
-  atrMultiplier: 1.5
+  atrMultiplier: 1.5,
+  signalCooldown: 30 * 60 * 1000
 };
 
 interface KlineStore {
@@ -35,7 +37,6 @@ export class SignalEngine extends EventEmitter {
   private klines: KlineStore = {};
   private signalHistory: SignalHistory = {};
   private config: SignalConfig;
-  private signalCooldown = 30 * 60 * 1000;
 
   constructor(config: Partial<SignalConfig> = {}) {
     super();
@@ -77,7 +78,7 @@ export class SignalEngine extends EventEmitter {
         klines.shift();
       }
 
-      if (kline.x && this.shouldAnalyze(timeframe)) {
+      if (kline.isClosed && this.shouldAnalyze(timeframe)) {
         this.analyzeAndEmit(symbol, timeframe, kline);
       }
     }
@@ -108,7 +109,7 @@ export class SignalEngine extends EventEmitter {
     const history = this.signalHistory[symbol] || { lastSignal: 0, signalType: null };
     const now = Date.now();
 
-    if (now - history.lastSignal < this.signalCooldown) {
+    if (now - history.lastSignal < this.config.signalCooldown) {
       return null;
     }
 
@@ -206,7 +207,7 @@ export class SignalEngine extends EventEmitter {
     return reasons.join(' | ');
   }
 
-  getAssets(): Asset[] {
+  getAssets(): any[] {
     return Object.entries(this.klines).map(([symbol, timeframes]) => {
       const klines1h = timeframes['1h'] || [];
       const lastKline = klines1h[klines1h.length - 1];
@@ -216,8 +217,7 @@ export class SignalEngine extends EventEmitter {
         name: this.getAssetName(symbol),
         price: lastKline?.close || 0,
         change24h: 0,
-        volume24h: lastKline?.volume || 0,
-        lastSignal: this.signalHistory[symbol] ? undefined : undefined
+        volume24h: lastKline?.volume || 0
       };
     });
   }

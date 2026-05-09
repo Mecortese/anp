@@ -1,4 +1,4 @@
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import initSqlJs from 'sql.js';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +9,14 @@ const dbPath = path.join(dataDir, 'signals.db');
 
 mkdirSync(dataDir, { recursive: true });
 
-let db: SqlJsDatabase | null = null;
+interface Database {
+  run(sql: string, params?: any[]): void;
+  exec(sql: string): { columns: string[]; values: any[][] }[];
+  export(): Uint8Array;
+  close(): void;
+}
+
+let db: Database | null = null;
 
 async function initDb() {
   const SQL = await initSqlJs();

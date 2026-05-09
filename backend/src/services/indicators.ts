@@ -113,25 +113,4 @@ export class TechnicalAnalyzer {
 
     return trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period;
   }
-
-  static getSignal(indicators: TechnicalIndicators, currentPrice: number): 'bullish' | 'bearish' | 'neutral' {
-    let bullishSignals = 0;
-    let bearishSignals = 0;
-
-    if (indicators.rsi < 30) bullishSignals += 2;
-    else if (indicators.rsi > 70) bearishSignals += 2;
-
-    if (indicators.macd.histogram > 0) bullishSignals += 2;
-    else if (indicators.macd.histogram < 0) bearishSignals += 2;
-
-    if (indicators.ema_fast > indicators.ema_slow) bullishSignals++;
-    else bearishSignals++;
-
-    if (currentPrice < indicators.bollinger.lower) bullishSignals += 2;
-    else if (currentPrice > indicators.bollinger.upper) bearishSignals += 2;
-
-    if (bullishSignals > bearishSignals + 2) return 'bullish';
-    if (bearishSignals > bullishSignals + 2) return 'bearish';
-    return 'neutral';
-  }
 }
