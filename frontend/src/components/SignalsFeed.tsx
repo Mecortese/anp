@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Clock, Target, ShieldAlert, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, Target, Zap } from 'lucide-react';
 import type { Signal } from '../types';
 
 interface SignalsFeedProps {

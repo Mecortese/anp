@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import type { Ticker } from '../types';
+import { Line, ResponsiveContainer, AreaChart } from 'recharts';
 
 interface MiniChartProps {
   symbol: string;

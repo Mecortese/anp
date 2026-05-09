@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SignalsFeed } from './components/SignalsFeed';
 import { PriceTicker } from './components/PriceTicker';
