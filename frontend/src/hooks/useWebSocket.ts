@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Signal, Ticker, WSMessage } from '../types';
 
-const WS_URL = `ws://${window.location.hostname}:8080`;
-const API_URL = `http://${window.location.hostname}:3003`;
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+const API_URL = '';
 
 export function useWebSocket() {
   const [signals, setSignals] = useState<Signal[]>([]);

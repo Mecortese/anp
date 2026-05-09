@@ -8,7 +8,7 @@ interface Commodity {
   change24h: number;
 }
 
-const API_URL = `http://${window.location.hostname}:3003`;
+const API_URL = '';
 
 export const Commodities: React.FC = () => {
   const [commodities, setCommodities] = useState<Commodity[]>([]);
