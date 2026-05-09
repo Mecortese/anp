@@ -45,9 +45,20 @@ app.get('/api/commodities', async (req, res) => {
 });
 
 const isProd = process.env.NODE_ENV === 'production';
-const frontendDistPath = isProd 
-  ? path.join(process.cwd(), 'frontend/dist')
-  : path.join(__dirname, '../../frontend/dist');
+let frontendDistPath: string;
+
+if (isProd) {
+  const cwd = process.cwd();
+  if (cwd.endsWith('/backend')) {
+    frontendDistPath = path.join(cwd, 'frontend-dist');
+  } else {
+    frontendDistPath = path.join(cwd, 'backend', 'frontend-dist');
+  }
+} else {
+  frontendDistPath = path.join(__dirname, '../../frontend/dist');
+}
+
+console.log('[SERVER] Frontend path:', frontendDistPath);
 
 app.use(express.static(frontendDistPath));
 
