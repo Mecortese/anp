@@ -1,6 +1,6 @@
 import { app } from './routes/api.js';
 import { SignalEngine } from './services/signals.js';
-import { initWebSocket } from './websocket/client.js';
+import { initWebSocket, getWebSocket } from './websocket/client.js';
 import { initTelegram } from './services/telegram.js';
 import { signalDb } from './services/database.js';
 import type { Signal } from './types/index.js';
@@ -27,7 +27,7 @@ async function main() {
 
   const server = http.createServer(app);
   
-  initWebSocket(server);
+  const ws = initWebSocket(server);
   console.log('[WS] WebSocket ready');
   
   const engine = new SignalEngine({
@@ -65,8 +65,7 @@ async function main() {
       status: 'open'
     });
 
-    const ws = require('./websocket/client.js').getWebSocket();
-    if (ws) ws.broadcastSignal(signal);
+    ws.broadcastSignal(signal);
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       const telegram = initTelegram(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
@@ -75,8 +74,7 @@ async function main() {
   });
 
   engine.on('ticker', (ticker: any) => {
-    const ws = require('./websocket/client.js').getWebSocket();
-    if (ws) ws.broadcastTicker(ticker);
+    ws.broadcastTicker(ticker);
 
     const openSignals = signalDb.getOpen();
     openSignals.forEach(s => {

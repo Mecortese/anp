@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { signalDb } from '../services/database.js';
 import { commodityService } from '../services/commodities.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
@@ -39,10 +44,15 @@ app.get('/api/commodities', async (req, res) => {
   }
 });
 
-app.use(express.static('../frontend/dist'));
+const isProd = process.env.NODE_ENV === 'production';
+const frontendDistPath = isProd 
+  ? path.join(process.cwd(), 'frontend/dist')
+  : path.join(__dirname, '../../frontend/dist');
+
+app.use(express.static(frontendDistPath));
 
 app.get('*', (req, res) => {
-  res.sendFile('../frontend/dist/index.html');
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 export { app };
