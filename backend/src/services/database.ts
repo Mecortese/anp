@@ -4,7 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '../../data');
+const dataDir = process.env.NODE_ENV === 'production' 
+  ? path.join(process.cwd(), 'data')
+  : path.join(__dirname, '../../data');
 const dbPath = path.join(dataDir, 'signals.db');
 
 mkdirSync(dataDir, { recursive: true });

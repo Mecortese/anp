@@ -1,9 +1,16 @@
-import { app, addSignal, updateAsset } from './routes/api.js';
+import { app } from './routes/api.js';
 import { SignalEngine } from './services/signals.js';
 import { initWebSocket } from './websocket/client.js';
 import { initTelegram } from './services/telegram.js';
 import { signalDb } from './services/database.js';
 import type { Signal } from './types/index.js';
+import { mkdirSync, existsSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dataDir = path.join(__dirname, '../data');
+if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
 
 const PORT = parseInt(process.env.PORT || '3000');
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -13,8 +20,10 @@ async function main() {
   console.log('🚀 Crypto Signals Server Starting...');
 
   await signalDb.init();
+  console.log('[DB] SQLite ready');
 
   const ws = initWebSocket(8080);
+  console.log('[WS] WebSocket server on port 8080');
   
   const engine = new SignalEngine({
     minRSI: 28,
@@ -25,8 +34,6 @@ async function main() {
 
   engine.on('signal', (signal: Signal) => {
     console.log(`[SIGNAL] ${signal.type.toUpperCase()} ${signal.symbol} @ $${signal.entryPrice}`);
-    
-    addSignal(signal);
     
     signalDb.save({
       id: signal.id,
@@ -63,14 +70,6 @@ async function main() {
 
   engine.on('ticker', (ticker: any) => {
     ws.broadcastTicker(ticker);
-    
-    updateAsset({
-      symbol: ticker.symbol,
-      name: ticker.symbol.replace('USDT', ''),
-      price: ticker.price,
-      change24h: ticker.change24h,
-      volume24h: ticker.volume24h
-    });
 
     const openSignals = signalDb.getOpen();
     openSignals.forEach(s => {
@@ -102,8 +101,7 @@ async function main() {
   engine.start();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[HTTP] Server on port ${PORT}`);
-    console.log(`[WS] WebSocket on ws://0.0.0.0:8080`);
+    console.log(`[HTTP] Server on http://0.0.0.0:${PORT}`);
   });
 
   process.on('SIGINT', () => {
