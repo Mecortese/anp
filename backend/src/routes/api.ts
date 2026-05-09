@@ -4,6 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { signalDb } from '../services/database.js';
 import { commodityService } from '../services/commodities.js';
+import { BinancePolling } from '../services/binancePolling.js';
+import { TechnicalAnalyzer } from '../services/indicators.js';
+import type { Kline, TechnicalIndicators, Signal } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,11 +16,9 @@ let frontendDistPath: string;
 
 if (isProd) {
   const cwd = process.cwd();
-  if (cwd.endsWith('/backend')) {
-    frontendDistPath = path.join(cwd, 'frontend-dist');
-  } else {
-    frontendDistPath = path.join(cwd, 'backend', 'frontend-dist');
-  }
+  frontendDistPath = cwd.endsWith('/backend') 
+    ? path.join(cwd, 'frontend-dist')
+    : path.join(cwd, 'backend', 'frontend-dist');
 } else {
   frontendDistPath = path.join(__dirname, '../../frontend/dist');
 }
@@ -28,8 +29,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const tickers: Map<string, any> = new Map();
+let tickersLastUpdate = 0;
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
+  res.json({ status: 'ok', timestamp: Date.now(), tickersUpdated: tickersLastUpdate });
 });
 
 app.get('/api/signals', (req, res) => {
@@ -60,7 +64,11 @@ app.get('/api/commodities', async (req, res) => {
 });
 
 app.get('/api/assets', (req, res) => {
-  res.json([]);
+  res.json(Array.from(tickers.values()));
+});
+
+app.get('/api/tickers', (req, res) => {
+  res.json(Array.from(tickers.values()));
 });
 
 app.use(express.static(frontendDistPath));
@@ -69,4 +77,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
-export { app };
+const polling = new BinancePolling((newTickers) => {
+  newTickers.forEach(t => {
+    tickers.set(t.symbol, {
+      symbol: t.symbol,
+      name: t.symbol.replace('USDT', ''),
+      price: t.price,
+      change24h: t.change24h,
+      volume24h: t.volume24h
+    });
+    tickersLastUpdate = Date.now();
+  });
+});
+
+export { app, polling };
