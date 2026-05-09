@@ -3,12 +3,16 @@ import { Header } from './components/Header';
 import { SignalsFeed } from './components/SignalsFeed';
 import { PriceTicker } from './components/PriceTicker';
 import { SignalChart } from './components/SignalChart';
-import { MiniChart } from './components/MiniChart';
 import { Commodities } from './components/Commodities';
 import { useWebSocket } from './hooks/useWebSocket';
 
 function App() {
   const { signals, tickers, connected } = useWebSocket();
+
+  useEffect(() => {
+    console.log('Tickers received:', tickers.size, 'items');
+    console.log('Sample ticker:', Array.from(tickers.values())[0]);
+  }, [tickers]);
 
   const todaySignals = signals.filter(
     s => s.timestamp > Date.now() - 24 * 60 * 60 * 1000
@@ -40,24 +44,6 @@ function App() {
           <aside className="space-y-6">
             <Commodities />
             <SignalChart signals={signals} />
-            
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-gray-300">
-                Tendencias
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {Array.from(tickers.values())
-                  .slice(0, 6)
-                  .map((ticker) => (
-                    <MiniChart
-                      key={ticker.symbol}
-                      symbol={ticker.symbol}
-                      price={ticker.price}
-                      change={ticker.change24h}
-                    />
-                  ))}
-              </div>
-            </div>
           </aside>
         </div>
       </main>
