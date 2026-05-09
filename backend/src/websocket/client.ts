@@ -1,13 +1,31 @@
 import { WebSocket, WebSocketServer } from 'ws';
+import type { Server } from 'http';
 import type { Signal, Asset } from '../types/index.js';
 
 export class SignalWebSocket {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
+  private httpServer: Server;
 
-  constructor(port: number = 8080) {
-    this.wss = new WebSocketServer({ port });
+  constructor(server: Server) {
+    this.httpServer = server;
+    this.wss = new WebSocketServer({ noServer: true });
     this.setup();
+    this.handleUpgrade();
+  }
+
+  private handleUpgrade(): void {
+    this.httpServer.on('upgrade', (request, socket, head) => {
+      const url = request.url || '';
+      
+      if (url.startsWith('/ws')) {
+        this.wss.handleUpgrade(request, socket, head, (ws) => {
+          this.wss.emit('connection', ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
+    });
   }
 
   private setup(): void {
@@ -37,7 +55,7 @@ export class SignalWebSocket {
       ws.send(JSON.stringify({ type: 'connected', message: 'Connected to signal server' }));
     });
 
-    console.log(`[WS] Server running on ws://localhost:${(this.wss as any).address().port}`);
+    console.log('[WS] WebSocket server ready');
   }
 
   private handleMessage(ws: WebSocket, data: any): void {
@@ -72,10 +90,6 @@ export class SignalWebSocket {
     this.broadcast('ticker', ticker);
   }
 
-  broadcastPrice(symbol: string, price: number): void {
-    this.broadcast('price', { symbol, price, timestamp: Date.now() });
-  }
-
   getClientCount(): number {
     return this.clients.size;
   }
@@ -87,8 +101,8 @@ export class SignalWebSocket {
 
 let wsInstance: SignalWebSocket | null = null;
 
-export function initWebSocket(port: number = 8080): SignalWebSocket {
-  wsInstance = new SignalWebSocket(port);
+export function initWebSocket(server: Server): SignalWebSocket {
+  wsInstance = new SignalWebSocket(server);
   return wsInstance;
 }
 

@@ -7,9 +7,12 @@ import type { Signal } from './types/index.js';
 import { mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '../data');
+const dataDir = process.env.NODE_ENV === 'production' 
+  ? path.join(process.cwd(), 'data')
+  : path.join(__dirname, '../data');
 if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
 
 const PORT = parseInt(process.env.PORT || '3000');
@@ -22,8 +25,10 @@ async function main() {
   await signalDb.init();
   console.log('[DB] SQLite ready');
 
-  const ws = initWebSocket(8080);
-  console.log('[WS] WebSocket server on port 8080');
+  const server = http.createServer(app);
+  
+  initWebSocket(server);
+  console.log('[WS] WebSocket ready');
   
   const engine = new SignalEngine({
     minRSI: 28,
@@ -59,8 +64,9 @@ async function main() {
       atr: signal.indicators?.atr || 0,
       status: 'open'
     });
-    
-    ws.broadcastSignal(signal);
+
+    const ws = require('./websocket/client.js').getWebSocket();
+    if (ws) ws.broadcastSignal(signal);
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       const telegram = initTelegram(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
@@ -69,7 +75,8 @@ async function main() {
   });
 
   engine.on('ticker', (ticker: any) => {
-    ws.broadcastTicker(ticker);
+    const ws = require('./websocket/client.js').getWebSocket();
+    if (ws) ws.broadcastTicker(ticker);
 
     const openSignals = signalDb.getOpen();
     openSignals.forEach(s => {
@@ -100,14 +107,14 @@ async function main() {
 
   engine.start();
 
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`[HTTP] Server on http://0.0.0.0:${PORT}`);
   });
 
   process.on('SIGINT', () => {
     console.log('\nShutting down...');
     engine.stop();
-    ws.close();
+    server.close();
     process.exit(0);
   });
 }
