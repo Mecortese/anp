@@ -59,6 +59,10 @@ app.get('/api/commodities', async (req, res) => {
   }
 });
 
+app.get('/api/assets', (req, res) => {
+  res.json([]);
+});
+
 app.use(express.static(frontendDistPath));
 
 app.get('/', (req, res) => {
