@@ -8,6 +8,22 @@ import { commodityService } from '../services/commodities.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isProd = process.env.NODE_ENV === 'production';
+let frontendDistPath: string;
+
+if (isProd) {
+  const cwd = process.cwd();
+  if (cwd.endsWith('/backend')) {
+    frontendDistPath = path.join(cwd, 'frontend-dist');
+  } else {
+    frontendDistPath = path.join(cwd, 'backend', 'frontend-dist');
+  }
+} else {
+  frontendDistPath = path.join(__dirname, '../../frontend/dist');
+}
+
+console.log('[SERVER] Frontend path:', frontendDistPath);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -19,7 +35,6 @@ app.get('/api/health', (req, res) => {
 app.get('/api/signals', (req, res) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const symbol = req.query.symbol as string;
-  
   if (symbol) {
     res.json(signalDb.getBySymbol(symbol, limit));
   } else {
@@ -44,25 +59,9 @@ app.get('/api/commodities', async (req, res) => {
   }
 });
 
-const isProd = process.env.NODE_ENV === 'production';
-let frontendDistPath: string;
-
-if (isProd) {
-  const cwd = process.cwd();
-  if (cwd.endsWith('/backend')) {
-    frontendDistPath = path.join(cwd, 'frontend-dist');
-  } else {
-    frontendDistPath = path.join(cwd, 'backend', 'frontend-dist');
-  }
-} else {
-  frontendDistPath = path.join(__dirname, '../../frontend/dist');
-}
-
-console.log('[SERVER] Frontend path:', frontendDistPath);
-
 app.use(express.static(frontendDistPath));
 
-app.get('*', (req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
