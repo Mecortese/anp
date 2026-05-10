@@ -153,15 +153,23 @@ app.get('/api/funding-rates', (req, res) => {
 });
 
 app.get('/api/setups', async (req, res) => {
-  const symbols = (req.query.symbols as string || 'BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT').split(',');
-  const timeframe = String(req.query.interval || '1H');
+  const DEFAULT_SYMBOLS = 'BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,LINKUSDT,DOGEUSDT,AVAXUSDT,MATICUSDT';
+  const symbols = (req.query.symbols as string || DEFAULT_SYMBOLS).split(',');
+  const timeframes = (req.query.intervals as string || '1H,4H').split(',');
   const results: any[] = [];
   let completed = 0;
 
-  for (const symbol of symbols) {
+  const allSymbols = symbols.map(s => ({ symbol: s, timeframe: timeframes[0] }));
+  for (const tf of timeframes.slice(1)) {
+    for (const sym of symbols) {
+      allSymbols.push({ symbol: sym, timeframe: tf });
+    }
+  }
+
+  const fundCache: Record<string, string> = {};
+  for (const { symbol, timeframe } of allSymbols) {
     const okxSym = symbol.includes('-') ? symbol : `${symbol.slice(0, -4)}-USDT`;
     const klinePath = `/api/v5/market/history-candles?instId=${okxSym}&bar=${timeframe}&limit=100`;
-    const fundPath = `/api/v5/public/funding-rate?instId=${okxSym}-SWAP`;
 
     const [klineData, fundData] = await Promise.all([
       new Promise<string>((resolve) => {
@@ -171,8 +179,10 @@ app.get('/api/setups', async (req, res) => {
         req.on('error', () => resolve('')); req.end();
       }),
       new Promise<string>((resolve) => {
+        if (fundCache[okxSym]) { resolve(fundCache[okxSym]); return; }
+        const fundPath = `/api/v5/public/funding-rate?instId=${okxSym}-SWAP`;
         const req = https.request({ hostname: 'www.okx.com', path: fundPath, method: 'GET' }, (r) => {
-          let d = ''; r.on('data', c => d += c); r.on('end', () => resolve(d));
+          let d = ''; r.on('data', c => d += c); r.on('end', () => { fundCache[okxSym] = d; resolve(d); });
         });
         req.on('error', () => resolve('')); req.end();
       })
@@ -245,7 +255,7 @@ app.get('/api/setups', async (req, res) => {
     } catch {}
 
     completed++;
-    if (completed === symbols.length) {
+    if (completed === allSymbols.length) {
       res.json(results.sort((a: any, b: any) => b.convictionScore - a.convictionScore));
     }
   }

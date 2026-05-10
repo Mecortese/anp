@@ -26,6 +26,7 @@ export interface TradeSetup {
   macdHistogram: number;
   volumeRatio: number;
   timestamp: number;
+  taken?: boolean;
 }
 
 interface Stats {
@@ -45,7 +46,7 @@ export function useTradingSetups() {
   const loadSetups = async () => {
     try {
       const [setupsResp, statsResp] = await Promise.all([
-        fetch(`${BACKEND}/api/setups?symbols=BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT`),
+        fetch(`${BACKEND}/api/setups?symbols=BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,LINKUSDT,DOGEUSDT`),
         fetch(`${BACKEND}/api/signals/stats`)
       ]);
 
