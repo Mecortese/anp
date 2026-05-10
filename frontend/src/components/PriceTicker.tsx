@@ -1,60 +1,86 @@
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import type { Ticker } from '../types';
+import { useEffect, useState } from 'react';
 
-interface PriceTickerProps {
-  tickers: Map<string, Ticker>;
+const COINGECKO_IDS: Record<string, string> = {
+  'BTCUSDT': 'bitcoin',
+  'ETHUSDT': 'ethereum',
+  'BNBUSDT': 'binancecoin',
+  'SOLUSDT': 'solana',
+  'XRPUSDT': 'ripple',
+  'ADAUSDT': 'cardano',
+  'DOGEUSDT': 'dogecoin',
+  'AVAXUSDT': 'avalanche-2',
+  'DOTUSDT': 'polkadot',
+  'LINKUSDT': 'chainlink',
+};
+
+const SYMBOLS = Object.keys(COINGECKO_IDS);
+
+interface PriceData {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
 }
 
-const POPULAR_SYMBOLS = [
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
-  'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT'
-];
+export function PriceTicker() {
+  const [prices, setPrices] = useState<PriceData[]>([]);
 
-export const PriceTicker: React.FC<PriceTickerProps> = ({ tickers }) => {
-  const formatPrice = (price: number) => {
-    if (!price) return '---';
-    if (price >= 1000) return `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-    if (price >= 1) return `$${price.toFixed(4)}`;
-    return `$${price.toFixed(6)}`;
-  };
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const ids = Object.values(COINGECKO_IDS).join(',');
+        const resp = await fetch(
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=volume_desc&sparkline=false`
+        );
+        const data = await resp.json();
 
-  const formatVolume = (vol: number) => {
-    if (!vol) return '---';
-    if (vol >= 1e9) return `${(vol / 1e9).toFixed(2)}B`;
-    if (vol >= 1e6) return `${(vol / 1e6).toFixed(2)}M`;
-    return vol.toFixed(0);
-  };
+        const priceMap = new Map<string, PriceData>();
+        for (const coin of data) {
+          const entry = Object.entries(COINGECKO_IDS).find(([, id]) => id === coin.id);
+          if (entry) {
+            const [symbol] = entry;
+            priceMap.set(symbol, {
+              symbol,
+              name: coin.symbol.toUpperCase(),
+              price: coin.current_price,
+              change24h: coin.price_change_percentage_24h
+            });
+          }
+        }
 
-  const filteredTickers = Array.from(tickers.entries())
-    .filter(([symbol]) => POPULAR_SYMBOLS.includes(symbol))
-    .sort((a, b) => Math.abs(b[1].change24h || 0) - Math.abs(a[1].change24h || 0));
+        setPrices(SYMBOLS.map(s => priceMap.get(s)!).filter(Boolean));
+      } catch (err) {
+        console.error('[Prices] Failed:', err);
+      }
+    };
 
-  if (filteredTickers.length === 0) {
-    return (
-      <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400">
-        Cargando precios...
-      </div>
-    );
-  }
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fmtPrice = (p: number) =>
+    p >= 1000 ? `$${p.toLocaleString('es', { maximumFractionDigits: 2 })}`
+    : p >= 1 ? `$${p.toFixed(4)}`
+    : `$${p.toFixed(6)}`;
+
+  if (prices.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-      {filteredTickers.map(([symbol, ticker]) => (
-        <div key={symbol} className="bg-gray-800 rounded-lg p-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      {prices.map(p => (
+        <div key={p.symbol} className="bg-gray-900 rounded-lg p-3 border border-gray-800">
           <div className="flex items-center justify-between mb-1">
-            <span className="font-semibold text-sm">{symbol.replace('USDT', '')}</span>
-            {ticker.change24h >= 0 ? (
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-red-500" />
-            )}
+            <span className="font-bold text-sm">{p.name}</span>
+            <span className={`text-xs font-bold ${p.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {p.change24h >= 0 ? '+' : ''}{p.change24h.toFixed(2)}%
+            </span>
           </div>
-          <p className="font-mono text-lg">{formatPrice(ticker.price)}</p>
-          <p className={`text-xs ${ticker.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {ticker.change24h >= 0 ? '+' : ''}{ticker.change24h?.toFixed(2)}%
-          </p>
+          <div className="font-mono text-white font-semibold">
+            {fmtPrice(p.price)}
+          </div>
         </div>
       ))}
     </div>
   );
-};
+}

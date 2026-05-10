@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { SignalsFeed } from './components/SignalsFeed';
+import { PriceTicker } from './components/PriceTicker';
 import { useSignalGenerator } from './hooks/useSignalGenerator';
 import { StatsPanel } from './components/StatsPanel';
 import { EquityChart } from './components/EquityChart';
@@ -20,14 +21,17 @@ function App() {
       />
 
       <main className="p-6 max-w-screen-2xl mx-auto space-y-6">
+        <section>
+          <h2 className="text-lg font-semibold mb-3 text-gray-300">Precios en Vivo</h2>
+          <PriceTicker />
+        </section>
+
         <StatsPanel signals={signals} leverage={leverage} />
 
         <EquityChart signals={signals} leverage={leverage} />
 
         <section>
-          <h2 className="text-lg font-semibold mb-3 text-gray-300">
-            Señales Recientes
-          </h2>
+          <h2 className="text-lg font-semibold mb-3 text-gray-300">Señales Recientes</h2>
           <SignalsFeed signals={signals} leverage={leverage} />
         </section>
       </main>

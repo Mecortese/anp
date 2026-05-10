@@ -1,13 +1,14 @@
 import type { Kline } from './indicators';
 
 const BINANCE_WS = 'wss://stream.binance.com:9443/ws';
-const BINANCE_REST = 'https://api.binance.com/api/v3';
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 export const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT'];
 export const TIMEFRAMES = ['1h', '4h'];
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let klineCount = 0;
 
 export interface KlineCallback {
   (symbol: string, timeframe: string, kline: Kline): void;
@@ -24,9 +25,10 @@ function connect() {
   if (ws) ws.close();
 
   const streams = SYMBOLS.flatMap(s =>
-    [`${s.toLowerCase()}@kline_1m`, `${s.toLowerCase()}@kline_1h`, `${s.toLowerCase()}@kline_4h`]
+    [`${s.toLowerCase()}@kline_1h`, `${s.toLowerCase()}@kline_4h`]
   ).join('/');
 
+  console.log('[WS] Connecting to Binance WebSocket...');
   ws = new WebSocket(`${BINANCE_WS}/${streams}`);
 
   ws.onopen = () => {
@@ -40,10 +42,11 @@ function connect() {
       if (msg.e === 'kline' && msg.k) {
         const k = msg.k;
         const symbol = k.s;
-        const tf = k.i as string;
-        const timeframe = tf === '1m' ? '1h' : tf;
+        const timeframe = k.i as string;
 
         if (onKline && (timeframe === '1h' || timeframe === '4h')) {
+          klineCount++;
+          if (klineCount % 20 === 0) console.log(`[WS] Klines: ${klineCount}, last: ${symbol} ${timeframe}`);
           onKline(symbol, timeframe, {
             time: k.t,
             open: parseFloat(k.o),
@@ -57,14 +60,9 @@ function connect() {
     } catch {}
   };
 
-  ws.onerror = () => {
-    console.warn('[WS] Error, retrying in 5s...');
-  };
-
+  ws.onerror = () => console.warn('[WS] Error');
   ws.onclose = () => {
-    if (!reconnectTimer) {
-      reconnectTimer = setTimeout(connect, 5000);
-    }
+    if (!reconnectTimer) reconnectTimer = setTimeout(connect, 5000);
   };
 }
 
@@ -75,8 +73,8 @@ export function disconnect() {
 
 export async function fetchHistoricalKlines(symbol: string, interval: string, limit = 200): Promise<Kline[]> {
   try {
-    const url = `${BINANCE_REST}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-    const resp = await fetch(url);
+    const url = encodeURIComponent(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    const resp = await fetch(`${CORS_PROXY}${url}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     return data.map((k: any[]) => ({
@@ -95,10 +93,13 @@ export async function fetchHistoricalKlines(symbol: string, interval: string, li
 
 export async function fetchAllKlines(interval: string, limit = 200): Promise<Map<string, Kline[]>> {
   const map = new Map<string, Kline[]>();
-  const promises = SYMBOLS.map(async (symbol) => {
+  for (const symbol of SYMBOLS) {
     const klines = await fetchHistoricalKlines(symbol, interval, limit);
-    if (klines.length > 0) map.set(symbol, klines);
-  });
-  await Promise.all(promises);
+    if (klines.length > 0) {
+      map.set(symbol, klines);
+      console.log(`[Kline] ${symbol} ${interval}: ${klines.length} klines loaded`);
+    }
+  }
+  console.log(`[Kline] Total loaded: ${map.size}/${SYMBOLS.length} for ${interval}`);
   return map;
 }
