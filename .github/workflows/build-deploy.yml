@@ -1,0 +1,57 @@
+name: Build + Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+
+      - name: Build TypeScript
+        run: |
+          cd backend && npx tsc
+
+      - name: Build frontend
+        run: |
+          cd frontend && npm ci && npm run build
+
+      - name: Copy frontend build
+        run: |
+          rm -rf backend/frontend-dist
+          cp -r frontend/dist backend/frontend-dist
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ] && [ -n "$RAILWAY_PROJECT_ID" ]; then
+            curl -X POST "https://api.railway.app/v0/deploy" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -H "accept: application/json" \
+              -d "{\"projectId\": \"$RAILWAY_PROJECT_ID\", \"environment\": \"production\", \"branch\": \"main\", \"source\": \"github\"}"
+          else
+            echo "Railway secrets not configured - skipping"
+          fi
+
+      - name: Deploy to Render
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":true}'
+        continue-on-error: true
