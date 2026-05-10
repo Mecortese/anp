@@ -10,18 +10,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isProd = process.env.NODE_ENV === 'production';
+
 let frontendDistPath: string;
 
 if (isProd) {
   const cwd = process.cwd();
-  frontendDistPath = cwd.endsWith('/backend') 
-    ? path.join(cwd, 'frontend-dist')
-    : path.join(cwd, 'backend', 'frontend-dist');
+  console.log('[SERVER] Production CWD:', cwd);
+  
+  if (cwd.endsWith('/app/backend')) {
+    frontendDistPath = path.join(cwd, 'frontend-dist');
+  } else if (cwd.endsWith('/app')) {
+    frontendDistPath = path.join(cwd, 'backend', 'frontend-dist');
+  } else {
+    frontendDistPath = path.join(cwd, 'frontend-dist');
+  }
 } else {
   frontendDistPath = path.join(__dirname, '../../frontend/dist');
 }
 
-console.log('[SERVER] Frontend path:', frontendDistPath);
+console.log('[SERVER] Frontend dist path:', frontendDistPath);
 
 const app = express();
 app.use(cors());

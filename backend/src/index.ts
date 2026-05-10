@@ -1,20 +1,32 @@
 import { app, fetchTickers } from './routes/api.js';
-import { initTelegram } from './services/telegram.js';
 import { signalDb } from './services/database.js';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync, readdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = process.env.NODE_ENV === 'production' 
-  ? path.join(process.cwd(), 'data')
-  : path.join(__dirname, '../data');
-if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+
+const isProd = process.env.NODE_ENV === 'production';
+
+function getDataDir() {
+  if (isProd) {
+    const cwd = process.cwd();
+    const dataPath = path.join(cwd, 'data');
+    mkdirSync(dataPath, { recursive: true });
+    return dataPath;
+  }
+  const dataPath = path.join(__dirname, '../data');
+  mkdirSync(dataPath, { recursive: true });
+  return dataPath;
+}
+
+const dataDir = getDataDir();
+console.log('[SERVER] CWD:', process.cwd());
+console.log('[SERVER] Data dir:', dataDir);
 
 const PORT = parseInt(process.env.PORT || '3000');
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 
 async function main() {
   console.log('🚀 Crypto Signals Server Starting...');
@@ -31,7 +43,6 @@ async function main() {
   });
 
   setInterval(async () => {
-    console.log('[POLLING] Refreshing tickers...');
     await fetchTickers();
   }, 15000);
 
