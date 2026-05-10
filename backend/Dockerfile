@@ -2,12 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json tsconfig.json ./
 RUN npm ci --only=production
 
-COPY dist ./dist
+COPY src ./src
+RUN npx tsc
+
+COPY frontend-dist ./frontend-dist
 COPY data ./data
 
-EXPOSE 3000 8080
+EXPOSE 3000
 
-CMD ["sh", "-c", "node dist/index.js"]
+CMD ["node", "dist/index.js"]
