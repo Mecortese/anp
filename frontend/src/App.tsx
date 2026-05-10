@@ -1,130 +1,30 @@
 import { useState } from 'react';
-import { useTradingSetups } from './hooks/useTradingSetups';
 import { SetupCard } from './components/SetupCard';
-import { StatsPanel } from './components/StatsPanel';
+import { SignalsFeed } from './components/SignalsFeed';
 import { Disclaimer } from './components/Disclaimer';
 import { Leaderboard } from './components/Leaderboard';
 import { MySignals } from './components/MySignals';
-import { UserProvider, useUser } from './context/UserContext';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
+import { useTradingSetups } from './hooks/useTradingSetups';
+import { useUser } from './context/UserContext';
 
-function HeroBanner({ stats, user }: {
-  stats: { totalPnl1x: number; winRate: number; total: number; won: number; lost: number; equityCurve?: any[]; byType?: any[] };
-  user: { totalPnl1x: number; signalsTaken: number; signalsWon: number; signalsLost: number }
-}) {
-  const [count, setCount] = useState(0);
-  useState(() => {
-    const target = Math.abs(stats.totalPnl1x);
-    if (target === 0) { setCount(0); return; }
-    const duration = 1500, steps = 60, stepVal = target / steps;
-    let current = 0;
-    const timer = setInterval(() => {
-      current += stepVal;
-      if (current >= target) { setCount(target); clearInterval(timer); }
-      else setCount(current);
-    }, duration / steps);
-    return () => clearInterval(timer);
-  });
-
-  const pnlColor = stats.totalPnl1x >= 0 ? 'text-emerald-400' : 'text-red-400';
-  const wrColor = stats.winRate >= 55 ? 'text-emerald-400' : stats.winRate >= 50 ? 'text-yellow-400' : 'text-red-400';
-  const userPnlColor = user.totalPnl1x >= 0 ? 'text-emerald-400' : 'text-red-400';
-
-  const longStats = stats.byType?.find((t: any) => t.type === 'long');
-  const shortStats = stats.byType?.find((t: any) => t.type === 'short');
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 p-5 mb-4">
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 via-transparent to-blue-900/10" />
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl" />
-
-      <div className="relative grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
-        <div className="text-center">
-          <div className={`text-3xl md:text-4xl font-black ${pnlColor} drop-shadow-lg`}>
-            {stats.totalPnl1x >= 0 ? '+' : ''}{count.toFixed(1)}%
-          </div>
-          <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest">Equity Global</div>
-        </div>
-
-        <div className="text-center">
-          <div className={`text-3xl md:text-4xl font-black ${wrColor} drop-shadow-lg`}>
-            {stats.winRate > 0 ? stats.winRate.toFixed(1) + '%' : '—'}
-          </div>
-          <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest">Win Rate</div>
-        </div>
-
-        <div className="text-center">
-          <div className="text-3xl md:text-4xl font-black text-white drop-shadow-lg">
-            {stats.total}
-          </div>
-          <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest">Trades Totales</div>
-        </div>
-
-        <div className="text-center">
-          <div className="text-xl md:text-2xl font-black text-emerald-400">{stats.won}W</div>
-          <div className="text-xl md:text-2xl font-black text-red-400">{stats.lost}L</div>
-          <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest">W / L</div>
-        </div>
-
-        <div className="text-center">
-          <div className={`text-3xl md:text-4xl font-black ${userPnlColor} drop-shadow-lg`}>
-            {user.signalsTaken > 0 ? (user.totalPnl1x >= 0 ? '+' : '') + user.totalPnl1x.toFixed(1) + '%' : '—'}
-          </div>
-          <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest">Mi P&L</div>
-        </div>
-      </div>
-
-      <div className="flex gap-4 text-xs text-gray-600 mb-3 justify-center">
-        <span>Longs: {longStats ? `${longStats.won}/${longStats.total}` : '—'}</span>
-        <span>Shorts: {shortStats ? `${shortStats.won}/${shortStats.total}` : '—'}</span>
-        <span>{user.signalsTaken} signals tomados</span>
-      </div>
-
-      {stats.equityCurve && stats.equityCurve.length > 1 && (
-        <div className="h-24">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={stats.equityCurve}>
-              <defs>
-                <linearGradient id="eqGrad2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 9 }} tickFormatter={v => v.slice(5)} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 9 }} tickFormatter={v => v + '%'} width={40} />
-              <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, fontSize: 11 }} labelStyle={{ color: '#888' }} formatter={(v: any) => [v?.toFixed(2) + '%', 'Equity']} />
-              <Area type="monotone" dataKey="equity1x" stroke="#10b981" fill="url(#eqGrad2)" strokeWidth={2} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
+const API = 'https://crypto-signals-idfn.onrender.com';
 
 function PulseIndicator({ loading }: { loading: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400'}`} />
-      <span className="text-[10px] text-gray-500">{loading ? 'Actualizando...' : 'Live'}</span>
+      <span className="text-[10px] text-gray-500">{loading ? 'Analizando...' : 'Live'}</span>
     </div>
   );
 }
 
-function Dashboard() {
-  const [tf, setTf] = useState('1H,4H');
-  const { setups, stats, loading, refresh } = useTradingSetups({ intervals: tf });
+export default function App() {
+  const { setups, loading, refresh } = useTradingSetups({ intervals: '1H,4H' });
   const { user } = useUser();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showMySignals, setShowMySignals] = useState(false);
-
-  const longs = setups.filter(s => s.type === 'long').length;
-  const shorts = setups.filter(s => s.type === 'short').length;
+  const [showFeed, setShowFeed] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -139,60 +39,55 @@ function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-xs text-gray-500">
+            <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500">
               <span className="bg-gray-800 px-2 py-1 rounded font-mono text-[10px]">{user.signalsTaken}</span>
               <span>signals</span>
-              <span className={user.totalPnl1x >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                {user.signalsTaken > 0 ? ((user.totalPnl1x >= 0 ? '+' : '') + user.totalPnl1x.toFixed(1) + '%') : '—'}
-              </span>
             </div>
-
+            <button onClick={() => setShowFeed(true)} className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs">Historial</button>
             <button onClick={() => setShowMySignals(true)} className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs">Mis Signals</button>
-            <button onClick={() => setShowLeaderboard(true)} className="hidden md:block px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs">Ranking</button>
+            <button onClick={() => setShowLeaderboard(true)} className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs hidden md:block">Ranking</button>
             <button onClick={refresh} className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs">Refresh</button>
             <button onClick={() => setShowDisclaimer(true)} className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs">Legal</button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto p-4 md:p-5 space-y-4">
-        <HeroBanner stats={stats} user={user} />
+      <main className="max-w-screen-xl mx-auto p-4 md:p-5 space-y-6">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-black tracking-tight">Setups Activos Ahora</h2>
+              <p className="text-xs text-gray-500">
+                {loading ? 'Analizando...' : `${setups.length} setups calificados`}
+                {' '}
+                <span className="text-emerald-400">{setups.filter(s => s.type === 'long').length} LONG</span>
+                {' '}
+                <span className="text-red-400">{setups.filter(s => s.type === 'short').length} SHORT</span>
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span className="text-emerald-400">{longs} LONG</span>
-          <span className="text-red-400">{shorts} SHORT</span>
-          <span className="flex-1" />
-          <span>TF:</span>
-          {(['1H,4H', '1H', '4H'] as const).map(t => (
-            <button key={t} onClick={() => setTf(t)}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold ${tf === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500'}`}>
-              {t}
-            </button>
-          ))}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-gray-500 text-sm">Analizando mercados...</span>
+            </div>
+          ) : setups.length === 0 ? (
+            <div className="bg-gray-900/50 rounded-2xl p-12 text-center border border-gray-800/40">
+              <div className="text-4xl mb-3">&#128269;</div>
+              <p className="text-gray-400 font-semibold">Sin setups calificados ahora</p>
+              <p className="text-gray-600 text-xs mt-2">Convicci&#243;n m&#237;nima 65%. Revis&#225; en 5 min.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {setups.map(setup => (
+                <SetupCard key={`${setup.symbol}-${setup.timeframe}-${setup.timestamp}`} setup={setup} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-gray-500 text-sm">Analizando mercados...</span>
-          </div>
-        )}
-
-        {!loading && setups.length === 0 && (
-          <div className="bg-gray-900/50 rounded-2xl p-12 text-center border border-gray-800/50">
-            <div className="text-5xl mb-4">&#128269;</div>
-            <p className="text-gray-400 font-semibold text-lg">Sin setups calificados</p>
-            <p className="text-gray-600 text-sm mt-2">Convicci&#243;n m&#237;nima 65%. Revis&#225; en 5 min.</p>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {setups.map(setup => (
-            <SetupCard key={`${setup.symbol}-${setup.timeframe}-${setup.timestamp}`} setup={setup} />
-          ))}
-        </div>
-
-        <div className="text-center text-[10px] text-gray-700 py-4">
+        <div className="text-center text-[10px] text-gray-700 py-2">
           Datos de OKX &#183; No es consejo financiero &#183; Oper&#225; con responsabilidad
         </div>
       </main>
@@ -200,14 +95,16 @@ function Dashboard() {
       {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
       {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
       {showMySignals && <MySignals onClose={() => setShowMySignals(false)} />}
+      {showFeed && (
+        <div className="fixed inset-0 z-50 bg-black/90 overflow-y-auto">
+          <div className="max-w-screen-xl mx-auto p-4 md:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => setShowFeed(false)} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded text-sm">&#8592; Volver</button>
+            </div>
+            <SignalsFeed />
+          </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <UserProvider>
-      <Dashboard />
-    </UserProvider>
   );
 }
