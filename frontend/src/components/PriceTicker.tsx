@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 
-const COINGECKO_IDS: Record<string, string> = {
-  'BTCUSDT': 'bitcoin',
-  'ETHUSDT': 'ethereum',
-  'BNBUSDT': 'binancecoin',
-  'SOLUSDT': 'solana',
-  'XRPUSDT': 'ripple',
-  'ADAUSDT': 'cardano',
-  'DOGEUSDT': 'dogecoin',
-  'AVAXUSDT': 'avalanche-2',
-  'DOTUSDT': 'polkadot',
-  'LINKUSDT': 'chainlink',
-};
+const OKX_TICKER = 'https://www.okx.com/api/v5/market/ticker';
 
-const SYMBOLS = Object.keys(COINGECKO_IDS);
+const SYMBOLS = [
+  { okx: 'BTC-USDT', bin: 'BTCUSDT', name: 'BTC' },
+  { okx: 'ETH-USDT', bin: 'ETHUSDT', name: 'ETH' },
+  { okx: 'BNB-USDT', bin: 'BNBUSDT', name: 'BNB' },
+  { okx: 'SOL-USDT', bin: 'SOLUSDT', name: 'SOL' },
+  { okx: 'XRP-USDT', bin: 'XRPUSDT', name: 'XRP' },
+  { okx: 'ADA-USDT', bin: 'ADAUSDT', name: 'ADA' },
+  { okx: 'DOGE-USDT', bin: 'DOGEUSDT', name: 'DOGE' },
+  { okx: 'AVAX-USDT', bin: 'AVAXUSDT', name: 'AVAX' },
+  { okx: 'DOT-USDT', bin: 'DOTUSDT', name: 'DOT' },
+  { okx: 'LINK-USDT', bin: 'LINKUSDT', name: 'LINK' },
+];
 
 interface PriceData {
   symbol: string;
@@ -28,27 +28,19 @@ export function PriceTicker() {
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        const ids = Object.values(COINGECKO_IDS).join(',');
-        const resp = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=volume_desc&sparkline=false`
-        );
-        const data = await resp.json();
-
-        const priceMap = new Map<string, PriceData>();
-        for (const coin of data) {
-          const entry = Object.entries(COINGECKO_IDS).find(([, id]) => id === coin.id);
-          if (entry) {
-            const [symbol] = entry;
-            priceMap.set(symbol, {
-              symbol,
-              name: coin.symbol.toUpperCase(),
-              price: coin.current_price,
-              change24h: coin.price_change_percentage_24h
-            });
-          }
+        const results: PriceData[] = [];
+        for (const s of SYMBOLS) {
+          const resp = await fetch(`${OKX_TICKER}?instId=${s.okx}`);
+          if (!resp.ok) continue;
+          const json = await resp.json();
+          if (json.code !== '0' || !json.data?.[0]) continue;
+          const d = json.data[0];
+          const last = parseFloat(d.last);
+          const open24h = parseFloat(d.open24h);
+          const change = open24h > 0 ? ((last - open24h) / open24h) * 100 : 0;
+          results.push({ symbol: s.bin, name: s.name, price: last, change24h: Math.round(change * 100) / 100 });
         }
-
-        setPrices(SYMBOLS.map(s => priceMap.get(s)!).filter(Boolean));
+        if (results.length > 0) setPrices(results);
       } catch (err) {
         console.error('[Prices] Failed:', err);
       }
