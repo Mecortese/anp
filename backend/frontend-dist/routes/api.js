@@ -5,6 +5,9 @@ import { fileURLToPath } from 'url';
 import { signalDb } from '../services/database.js';
 import { commodityService } from '../services/commodities.js';
 import { existsSync, readdirSync } from 'fs';
+import https from 'https';
+const BINANCE_REST = 'api.binance.com';
+const BINANCE_KLINES = '/api/v3/klines';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const cwd = process.cwd();
@@ -129,6 +132,41 @@ app.get('/api/commodities', async (req, res) => {
     catch (err) {
         res.status(500).json({ error: 'Failed to fetch commodities' });
     }
+});
+app.get('/api/klines', (req, res) => {
+    const { symbol, interval = '1h', limit = 200 } = req.query;
+    if (!symbol)
+        return res.status(400).json({ error: 'symbol required' });
+    const path = `${BINANCE_KLINES}?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    console.log(`[PROXY] Binance klines: ${symbol} ${interval}`);
+    const options = {
+        hostname: BINANCE_REST,
+        path,
+        method: 'GET',
+        headers: { 'X-MBX-APIKEY': '' }
+    };
+    const proxyReq = https.request(options, (proxyRes) => {
+        let data = '';
+        proxyRes.on('data', chunk => data += chunk);
+        proxyRes.on('end', () => {
+            try {
+                const parsed = JSON.parse(data);
+                const klines = parsed.map((k) => ({
+                    time: k[0], open: parseFloat(k[1]), high: parseFloat(k[2]),
+                    low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5])
+                }));
+                res.json(klines);
+            }
+            catch {
+                res.status(502).json({ error: 'Invalid Binance response', raw: data.slice(0, 200) });
+            }
+        });
+    });
+    proxyReq.on('error', err => {
+        console.error('[PROXY] Binance error:', err.message);
+        res.status(502).json({ error: err.message });
+    });
+    proxyReq.end();
 });
 app.use(express.static(frontendDistPath));
 app.get('*', (req, res) => {

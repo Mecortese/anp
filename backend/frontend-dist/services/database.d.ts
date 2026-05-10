@@ -95,6 +95,7 @@ export declare const signalDb: {
     getOpen(): SignalRecord[];
     updateStatus(id: string, status: string, closedPrice: number, pnlPct1x: number, exitReason: string): void;
     getStats(): SignalStats;
+    _computeStats(): SignalStats;
     getInt(sql: string): number;
     getFloat(sql: string): number;
     emptyStats(): SignalStats;
