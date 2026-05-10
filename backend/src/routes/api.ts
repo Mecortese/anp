@@ -68,8 +68,12 @@ app.get('/api/klines', (req, res) => {
   const { symbol, interval = '1H', limit = 200 } = req.query;
   if (!symbol) return res.status(400).json({ error: 'symbol required' });
 
-  const path = `/api/v5/market/history-candles?instId=${symbol}&bar=${interval}&limit=${limit}`;
-  console.log(`[PROXY] OKX klines: ${symbol} ${interval}`);
+  const symStr = String(symbol);
+  const intStr = String(interval);
+  const limNum = parseInt(String(limit));
+  const okxSymbol = symStr.includes('-') ? symStr : `${symStr.slice(0, -4)}-USDT`;
+  const path = `/api/v5/market/history-candles?instId=${okxSymbol}&bar=${intStr}&limit=${limNum}`;
+  console.log(`[PROXY] OKX klines: ${okxSymbol} ${intStr}`);
 
   const options = {
     hostname: 'www.okx.com',
@@ -129,7 +133,8 @@ app.get('/api/funding-rates', (req, res) => {
   let completed = 0;
 
   for (const symbol of symbols) {
-    const path = `/api/v5/public/funding-rate?instId=${symbol}`;
+    const swapSymbol = `${symbol}-SWAP`;
+    const path = `/api/v5/public/funding-rate?instId=${swapSymbol}`;
     const options = { hostname: 'www.okx.com', path, method: 'GET' };
     const proxyReq = https.request(options, (proxyRes) => {
       let data = '';
@@ -158,13 +163,14 @@ app.get('/api/funding-rates', (req, res) => {
 
 app.get('/api/setups', async (req, res) => {
   const symbols = (req.query.symbols as string || 'BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT').split(',');
-  const timeframe = (req.query.interval as string) || '1H';
+  const timeframe = String(req.query.interval || '1H');
   const results: any[] = [];
   let completed = 0;
 
   for (const symbol of symbols) {
-    const klinePath = `/api/v5/market/history-candles?instId=${symbol}&bar=${timeframe}&limit=100`;
-    const fundPath = `/api/v5/public/funding-rate?instId=${symbol.replace('USDT', '-USDT')}`;
+    const okxSym = symbol.includes('-') ? symbol : `${symbol.slice(0, -4)}-USDT`;
+    const klinePath = `/api/v5/market/history-candles?instId=${okxSym}&bar=${timeframe}&limit=100`;
+    const fundPath = `/api/v5/public/funding-rate?instId=${okxSym}-SWAP`;
 
     const [klineData, fundData] = await Promise.all([
       new Promise<string>((resolve) => {
@@ -200,7 +206,7 @@ app.get('/api/setups', async (req, res) => {
         const score = Math.round(50 + (isBullish ? 20 : isBearish ? -10 : 0) + (rsiVal < 40 ? 15 : rsiVal > 60 ? -10 : 0) + (fundingRate < -0.03 ? 15 : fundingRate > 0.03 ? -15 : 0));
         const finalScore = Math.max(0, Math.min(100, score));
 
-        if (finalScore >= 45) {
+        if (finalScore >= 35) {
           const type = finalScore > 65 ? 'long' : 'short';
           const sl = type === 'long' ? lastClose * 0.985 : lastClose * 1.015;
           const tp = type === 'long' ? lastClose * 1.02 : lastClose * 0.98;
