@@ -89,11 +89,7 @@ async function initDb() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_status ON signals(status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_timeframe ON signals(timeframe)`);
 
-  if (db.exec(`SELECT COUNT(*) FROM signals`)[0]?.values[0]?.[0] === 0) {
-    seedData();
-  }
-
-  saveDb();
+saveDb();
 }
 
 function generateId() {
