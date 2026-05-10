@@ -7,7 +7,8 @@ import { Leaderboard } from './components/Leaderboard';
 import { UserProvider, useUser } from './context/UserContext';
 
 function Dashboard() {
-  const { setups, stats, loading, refresh } = useTradingSetups();
+  const [tf, setTf] = useState('1H,4H');
+  const { setups, stats, loading, refresh } = useTradingSetups({ intervals: tf });
   const { user } = useUser();
   const [leverage, setLeverage] = useState<1 | 2 | 3 | 5>(1);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -32,6 +33,16 @@ function Dashboard() {
               <span className={user.totalPnl1x >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {user.totalPnl1x >= 0 ? '+' : ''}{user.totalPnl1x.toFixed(1)}%
               </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">TF:</span>
+              {(['1H,4H', '1H', '4H'] as const).map(t => (
+                <button key={t} onClick={() => setTf(t)}
+                  className={`px-2 py-1 rounded text-xs font-bold transition-colors ${tf === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                  {t}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">
@@ -67,7 +78,7 @@ function Dashboard() {
 
         <div className="space-y-3">
           {setups.map(setup => (
-            <SetupCard key={setup.id} setup={setup} leverage={leverage} />
+            <SetupCard key={`${setup.symbol}-${setup.timeframe}-${setup.timestamp}`} setup={setup} leverage={leverage} />
           ))}
         </div>
       </main>

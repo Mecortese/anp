@@ -38,15 +38,22 @@ interface Stats {
   totalPnl5x: number;
 }
 
-export function useTradingSetups() {
+interface HookOptions {
+  intervals?: string;
+  symbols?: string;
+}
+
+export function useTradingSetups(opts: HookOptions = {}) {
   const [setups, setSetups] = useState<TradeSetup[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, won: 0, lost: 0, winRate: 0, totalPnl1x: 0, totalPnl5x: 0 });
   const [loading, setLoading] = useState(true);
 
   const loadSetups = async () => {
     try {
+      const intervals = opts.intervals || '1H,4H';
+      const syms = opts.symbols || 'BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,LINKUSDT,DOGEUSDT,AVAXUSDT,MATICUSDT';
       const [setupsResp, statsResp] = await Promise.all([
-        fetch(`${BACKEND}/api/setups?symbols=BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,LINKUSDT,DOGEUSDT`),
+        fetch(`${BACKEND}/api/setups?symbols=${syms}&intervals=${intervals}`),
         fetch(`${BACKEND}/api/signals/stats`)
       ]);
 
