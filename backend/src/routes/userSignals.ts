@@ -34,25 +34,41 @@ export function userSignalsRouter() {
     } catch (err) { res.status(500).json({ error: String(err) }); }
   });
 
-  router.get('/user/leaderboard', (req, res) => {
-    try {
-      const data = loadUserSignals();
-      const entries = Object.entries(data).map(([userId, signals]) => {
-        const taken = signals.filter((s: any) => s.action === 'taken').length;
-        const won = signals.filter((s: any) => s.action === 'won').length;
-        const lost = signals.filter((s: any) => s.action === 'lost').length;
-        const pnl = signals.filter((s: any) => s.pnlPct1x !== undefined)
-          .reduce((sum: number, s: any) => sum + s.pnlPct1x, 0);
-        const winRate = taken > 0 ? Math.round((won / taken) * 10000) / 100 : 0;
-        return { oderId: userId.slice(0, 12) + '...', taken, won, lost, pnl: Math.round(pnl * 100) / 100, winRate };
-      });
-      const sorted = entries.sort((a, b) => {
-        if (b.pnl !== a.pnl) return b.pnl - a.pnl;
-        return b.taken - a.taken;
-      });
-      res.json(sorted.slice(0, 50));
-    } catch (err) { res.status(500).json({ error: String(err) }); }
-  });
+router.get('/user/leaderboard', (req, res) => {
+  try {
+    const data = loadUserSignals();
+    const entries = Object.entries(data).map(([userId, signals]) => {
+      const taken = signals.filter((s: any) => s.action === 'taken').length;
+      const won = signals.filter((s: any) => s.action === 'won').length;
+      const lost = signals.filter((s: any) => s.action === 'lost').length;
+      const pnl = signals.filter((s: any) => s.pnlPct1x !== undefined)
+        .reduce((sum: number, s: any) => sum + s.pnlPct1x, 0);
+      const winRate = taken > 0 ? Math.round((won / taken) * 10000) / 100 : 0;
+      const totalEquity = signals.reduce((eq: number, s: any) => {
+        if (s.action === 'taken') return eq;
+        return eq + (s.pnlPct1x || 0);
+      }, 100);
+      return { oderId: userId.slice(0, 12) + '...', taken, won, lost, pnl: Math.round(pnl * 100) / 100, winRate, equity: Math.round(totalEquity * 100) / 100 };
+    });
+    const sorted = entries.sort((a, b) => b.equity - a.equity);
+    res.json(sorted.slice(0, 50));
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+router.get('/user/community', (req, res) => {
+  try {
+    const data = loadUserSignals();
+    let totalTaken = 0, totalWon = 0, totalLost = 0, totalPnl = 0;
+    for (const signals of Object.values(data)) {
+      totalTaken += signals.filter((s: any) => s.action === 'taken').length;
+      totalWon += signals.filter((s: any) => s.action === 'won').length;
+      totalLost += signals.filter((s: any) => s.action === 'lost').length;
+      totalPnl += signals.filter((s: any) => s.pnlPct1x !== undefined).reduce((sum: number, s: any) => sum + s.pnlPct1x, 0);
+    }
+    const winRate = totalTaken > 0 ? Math.round((totalWon / totalTaken) * 10000) / 100 : 0;
+    res.json({ totalTaken, totalWon, totalLost, totalPnl: Math.round(totalPnl * 100) / 100, winRate, users: Object.keys(data).length });
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
 
   return router;
 }

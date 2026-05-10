@@ -46,6 +46,7 @@ export interface LeaderboardEntry {
   lost: number;
   pnl: number;
   winRate: number;
+  equity?: number;
 }
 
 export type WSMessage = {
