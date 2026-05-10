@@ -1,8 +1,20 @@
-# Railway
+# Dependencies
 node_modules/
+
+# Build outputs (compiled on deploy)
 dist/
 build/
+
+# Data
 data/
+*.db
+
+# Environment
 .env
+*.env.local
+
+# Logs
 *.log
-.DS_Storefrontend-dist
+
+# OS
+.DS_Store
