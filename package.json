@@ -2,8 +2,7 @@
   "name": "crypto-signals",
   "version": "1.0.0",
   "scripts": {
-    "dev": "cd backend && npm install --include=dev && npm run dev",
-    "build": "cd backend && npm install --include=dev && npm run build",
-    "start": "cd backend && npm start"
+    "build": "cd backend && ./node_modules/.bin/tsc",
+    "start": "cd backend && node dist/index.js"
   }
 }
