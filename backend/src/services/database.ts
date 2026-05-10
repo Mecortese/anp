@@ -70,6 +70,20 @@ async function initDb() {
     )
   `);
 
+  const cols = db.exec(`PRAGMA table_info(signals)`);
+  const colNames = cols.length ? cols[0].values.map((r: any) => r[1]) : [];
+  const newCols = [
+    ['sl_pct', 'REAL'], ['tp_pct', 'REAL'], ['strategies', 'TEXT'],
+    ['volume_ratio', 'REAL'], ['trend', 'TEXT'], ['pnl_pct_1x', 'REAL'],
+    ['pnl_pct_2x', 'REAL'], ['pnl_pct_3x', 'REAL'], ['pnl_pct_5x', 'REAL'],
+    ['exit_reason', 'TEXT']
+  ];
+  for (const [name, type] of newCols) {
+    if (!colNames.includes(name)) {
+      db.run(`ALTER TABLE signals ADD COLUMN ${name} ${type}`);
+    }
+  }
+
   db.run(`CREATE INDEX IF NOT EXISTS idx_symbol ON signals(symbol)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_timestamp ON signals(timestamp)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_status ON signals(status)`);
@@ -157,15 +171,17 @@ export const signalDb = {
   save(signal: SignalRecord) {
     if (!db) return;
     db.run(`
-      INSERT OR REPLACE INTO signals VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+      INSERT OR REPLACE INTO signals (id, timestamp, symbol, type, entry_price, stop_loss, take_profit, sl_pct, tp_pct, confidence, timeframe, reason, strategies, rsi, macd_value, macd_signal, macd_histogram, ema_fast, ema_slow, ema_signal, bollinger_upper, bollinger_middle, bollinger_lower, atr, volume_ratio, trend, status, closed_at, closed_price, pnl_pct_1x, pnl_pct_2x, pnl_pct_3x, pnl_pct_5x, exit_reason, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       signal.id, signal.timestamp, signal.symbol, signal.type,
       signal.entryPrice, signal.stopLoss, signal.takeProfit, signal.slPct, signal.tpPct,
-      signal.confidence, signal.timeframe, signal.reason, signal.strategies,
-      signal.rsi, signal.macdValue, signal.macdSignal, signal.macdHistogram,
-      signal.emaFast, signal.emaSlow, signal.emaSignal,
-      signal.bollingerUpper, signal.bollingerMiddle, signal.bollingerLower,
-      signal.atr, signal.volumeRatio, signal.trend
+      signal.confidence, signal.timeframe, signal.reason || null, signal.strategies || null,
+      signal.rsi || null, signal.macdValue || null, signal.macdSignal || null, signal.macdHistogram || null,
+      signal.emaFast || null, signal.emaSlow || null, signal.emaSignal || null,
+      signal.bollingerUpper || null, signal.bollingerMiddle || null, signal.bollingerLower || null,
+      signal.atr || null, signal.volumeRatio || null, signal.trend || null,
+      'open', null, null, null, null, null, null, null, Date.now()
     ]);
     saveDb();
   },
@@ -197,7 +213,15 @@ export const signalDb = {
 
   getStats(): SignalStats {
     if (!db) return this.emptyStats();
+    try {
+    return this._computeStats();
+    } catch (e) {
+      console.error('[DB] getStats error:', e);
+      return this.emptyStats();
+    }
+  },
 
+  _computeStats(): SignalStats {
     const total = this.getInt(`SELECT COUNT(*) FROM signals`);
     const won = this.getInt(`SELECT COUNT(*) FROM signals WHERE status = 'won'`);
     const lost = this.getInt(`SELECT COUNT(*) FROM signals WHERE status = 'lost'`);
