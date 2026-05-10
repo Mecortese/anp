@@ -1,7 +1,7 @@
 import type { Kline } from './indicators';
 
 const BINANCE_WS = 'wss://stream.binance.com:9443/ws';
-const API_URL = '';
+const BINANCE_TESTNET = 'https://testnet.binance.vision/api';
 
 export const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT'];
 export const TIMEFRAMES = ['1h', '4h'];
@@ -73,13 +73,20 @@ export function disconnect() {
 
 export async function fetchHistoricalKlines(symbol: string, interval: string, limit = 200): Promise<Kline[]> {
   try {
-    const resp = await fetch(`${API_URL}/api/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    const resp = await fetch(`${BINANCE_TESTNET}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+    const data: any[][] = await resp.json();
     console.log(`[Kline] ${symbol} ${interval}: ${data.length} klines`);
-    return data;
+    return data.map(k => ({
+      time: k[0] as number,
+      open: parseFloat(k[1]),
+      high: parseFloat(k[2]),
+      low: parseFloat(k[3]),
+      close: parseFloat(k[4]),
+      volume: parseFloat(k[5])
+    }));
   } catch (err) {
-    console.error(`[Kline] Failed to fetch ${symbol} ${interval}:`, err);
+    console.error(`[Kline] Failed: ${symbol} ${interval}:`, err);
     return [];
   }
 }
