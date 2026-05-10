@@ -10,7 +10,6 @@ import { readdirSync, existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const isProd = process.env.NODE_ENV === 'production';
 const cwd = process.cwd();
 
 const possiblePaths = [
@@ -40,3 +39,66 @@ console.log('[SERVER] Index exists:', existsSync(path.join(frontendDistPath, 'in
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.get('/api/debug', (req, res) => {
+  res.json({
+    cwd,
+    frontendDistPath,
+    indexExists: existsSync(path.join(frontendDistPath, 'index.html')),
+    lsCwd: readdirSync(cwd),
+    possiblePaths: possiblePaths.map(p => ({ path: p, exists: existsSync(path.join(p, 'index.html')) }))
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  const status = getPollingStatus();
+  res.json({ 
+    status: 'ok', 
+    timestamp: Date.now(),
+    polling: status,
+    tickersCount: getTickers().length
+  });
+});
+
+app.get('/api/signals', (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 50;
+  const symbol = req.query.symbol as string;
+  if (symbol) {
+    res.json(signalDb.getBySymbol(symbol, limit));
+  } else {
+    res.json(signalDb.getAll(limit));
+  }
+});
+
+app.get('/api/signals/open', (req, res) => {
+  res.json(signalDb.getOpen());
+});
+
+app.get('/api/signals/stats', (req, res) => {
+  res.json(signalDb.getStats());
+});
+
+app.get('/api/commodities', async (req, res) => {
+  try {
+    const commodities = await commodityService.getAllCommodities();
+    res.json(commodities);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch commodities' });
+  }
+});
+
+app.get('/api/assets', (req, res) => {
+  res.json(getTickers());
+});
+
+app.get('/api/tickers', (req, res) => {
+  res.json(getTickers());
+});
+
+app.use(express.static(frontendDistPath));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
+export { app, fetchTickers };
