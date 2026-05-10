@@ -75,11 +75,7 @@ app.get('/api/klines', (req, res) => {
   const path = `/api/v5/market/history-candles?instId=${okxSymbol}&bar=${intStr}&limit=${limNum}`;
   console.log(`[PROXY] OKX klines: ${okxSymbol} ${intStr}`);
 
-  const options = {
-    hostname: 'www.okx.com',
-    path,
-    method: 'GET'
-  };
+  const options = { hostname: 'www.okx.com', path, method: 'GET' };
 
   const proxyReq = https.request(options, (proxyRes) => {
     let data = '';
@@ -87,7 +83,6 @@ app.get('/api/klines', (req, res) => {
     proxyRes.on('end', () => {
       try {
         const parsed = JSON.parse(data);
-        if (parsed.code !== '0') return res.status(502).json({ error: parsed.msg });
         res.json(parsed.data || []);
       } catch {
         res.status(502).json({ error: 'Invalid OKX response' });
@@ -104,11 +99,7 @@ app.get('/api/ticker', (req, res) => {
   if (!symbol) return res.status(400).json({ error: 'symbol required' });
 
   const path = `/api/v5/market/ticker?instId=${symbol}`;
-  const options = {
-    hostname: 'www.okx.com',
-    path,
-    method: 'GET'
-  };
+  const options = { hostname: 'www.okx.com', path, method: 'GET' };
 
   const proxyReq = https.request(options, (proxyRes) => {
     let data = '';
@@ -203,22 +194,31 @@ app.get('/api/setups', async (req, res) => {
         const isBullish = lastClose > ema9 && ema9 > ema21;
         const isBearish = lastClose < ema9 && ema9 < ema21;
 
-        const score = Math.round(50 + (isBullish ? 20 : isBearish ? -10 : 0) + (rsiVal < 40 ? 15 : rsiVal > 60 ? -10 : 0) + (fundingRate < -0.03 ? 15 : fundingRate > 0.03 ? -15 : 0));
+        const score = Math.round(
+          50 +
+          (isBullish ? 20 : isBearish ? -10 : 0) +
+          (rsiVal < 35 ? 20 : rsiVal < 45 ? 10 : rsiVal > 65 ? -15 : rsiVal > 55 ? -5 : 0) +
+          (fundingRate < -0.01 ? 15 : fundingRate < -0.005 ? 8 : fundingRate > 0.01 ? -15 : fundingRate > 0.005 ? -8 : 0)
+        );
         const finalScore = Math.max(0, Math.min(100, score));
 
-        if (finalScore >= 35) {
-          const type = finalScore > 65 ? 'long' : 'short';
-          const sl = type === 'long' ? lastClose * 0.985 : lastClose * 1.015;
-          const tp = type === 'long' ? lastClose * 1.02 : lastClose * 0.98;
-          const lev = finalScore >= 80 ? 5 : finalScore >= 70 ? 3 : finalScore >= 60 ? 2 : 1;
+        if (finalScore >= 65) {
+          const type = finalScore >= 82 ? 'long' : 'short';
+          const slPct = 0.02;
+          const tpPct = 0.04;
+          const sl = type === 'long' ? lastClose * (1 - slPct) : lastClose * (1 + slPct);
+          const tp = type === 'long' ? lastClose * (1 + tpPct) : lastClose * (1 - tpPct);
+          const lev: 1 | 2 | 3 | 5 = finalScore >= 92 ? 5 : finalScore >= 85 ? 3 : finalScore >= 78 ? 2 : 1;
 
           const edges: string[] = [];
-          if (isBullish) edges.push('EMA Bullish');
-          if (isBearish) edges.push('EMA Bearish');
-          if (rsiVal < 40) edges.push('RSI Oversold');
-          if (rsiVal > 60) edges.push('RSI Overbought');
-          if (fundingRate < -0.03) edges.push('Funding Short Squeeze');
-          if (fundingRate > 0.03) edges.push('Funding Long Squeeze');
+          if (isBullish) edges.push('EMA Bull');
+          if (isBearish) edges.push('EMA Bear');
+          if (rsiVal < 35) edges.push(`RSI ${rsiVal.toFixed(1)} OS`);
+          if (rsiVal < 45 && rsiVal >= 35) edges.push(`RSI ${rsiVal.toFixed(1)}`);
+          if (rsiVal > 65) edges.push(`RSI ${rsiVal.toFixed(1)} OB`);
+          if (fundingRate < -0.01) edges.push(`Fund ${(fundingRate * 100).toFixed(2)}% Short`);
+          if (fundingRate > 0.01) edges.push(`Fund ${(fundingRate * 100).toFixed(2)}% Long`);
+          if (fundingRate < -0.03) edges.push('⚡ SHORT SQUEEZE');
 
           results.push({
             symbol,
@@ -229,8 +229,8 @@ app.get('/api/setups', async (req, res) => {
             entryPrice: lastClose,
             stopLoss: Math.round(sl * 100) / 100,
             takeProfit: Math.round(tp * 100) / 100,
-            slPct: 1.5,
-            tpPct: 2,
+            slPct: 2,
+            tpPct: 4,
             edges,
             reason: edges.slice(0, 3).join(' + '),
             timeframe,
@@ -252,7 +252,7 @@ app.get('/api/setups', async (req, res) => {
 });
 
 app.get('/api/signals', (req, res) => {
-  const limit = parseInt(req.query.limit as string) || 100;
+  const limit = parseInt(String(req.query.limit || '100'));
   res.json(signalDb.getAll(limit));
 });
 
@@ -260,12 +260,8 @@ app.get('/api/signals/open', (req, res) => res.json(signalDb.getOpen()));
 app.get('/api/signals/stats', (req, res) => res.json(signalDb.getStats()));
 
 app.post('/api/signals', (req, res) => {
-  try {
-    signalDb.save(req.body);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
+  try { signalDb.save(req.body); res.json({ ok: true }); }
+  catch (err) { res.status(500).json({ error: String(err) }); }
 });
 
 app.put('/api/signals/:id', (req, res) => {
@@ -275,9 +271,7 @@ app.put('/api/signals/:id', (req, res) => {
       signalDb.updateStatus(req.params.id, status, closedPrice, pnlPct1x, exitReason);
     }
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
+  } catch (err) { res.status(500).json({ error: String(err) }); }
 });
 
 app.get('/api/signals/export/csv', (req, res) => {
@@ -299,17 +293,12 @@ app.get('/api/signals/export/csv', (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="signals_${new Date().toISOString().slice(0,10)}.csv"`);
     res.send(csv);
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
+  } catch (err) { res.status(500).json({ error: String(err) }); }
 });
 
 app.get('/api/commodities', async (req, res) => {
-  try {
-    res.json(await commodityService.getAllCommodities());
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch commodities' });
-  }
+  try { res.json(await commodityService.getAllCommodities()); }
+  catch { res.status(500).json({ error: 'Failed to fetch commodities' }); }
 });
 
 app.use(express.static(frontendDistPath));
