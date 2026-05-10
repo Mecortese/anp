@@ -1,92 +1,52 @@
 import type { Kline } from './indicators';
 
-const BINANCE_WS = 'wss://stream.binance.com:9443/ws';
-const BINANCE_TESTNET = 'https://testnet.binance.vision/api';
+const OKX = 'https://www.okx.com/api/v5/market';
 
-export const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT'];
-export const TIMEFRAMES = ['1h', '4h'];
+export const SYMBOLS = ['BTC-USDT', 'ETH-USDT', 'BNB-USDT', 'SOL-USDT', 'XRP-USDT', 'ADA-USDT', 'DOGE-USDT', 'AVAX-USDT', 'DOT-USDT', 'LINK-USDT'];
 
-let ws: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let klineCount = 0;
+const SYMBOL_MAP: Record<string, string> = {
+  'BTC-USDT': 'BTCUSDT',
+  'ETH-USDT': 'ETHUSDT',
+  'BNB-USDT': 'BNBUSDT',
+  'SOL-USDT': 'SOLUSDT',
+  'XRP-USDT': 'XRPUSDT',
+  'ADA-USDT': 'ADAUSDT',
+  'DOGE-USDT': 'DOGEUSDT',
+  'AVAX-USDT': 'AVAXUSDT',
+  'DOT-USDT': 'DOTUSDT',
+  'LINK-USDT': 'LINKUSDT',
+};
 
-export interface KlineCallback {
-  (symbol: string, timeframe: string, kline: Kline): void;
-}
-
-let onKline: KlineCallback | null = null;
-
-export function subscribeToKlines(callback: KlineCallback) {
-  onKline = callback;
-  connect();
-}
-
-function connect() {
-  if (ws) ws.close();
-
-  const streams = SYMBOLS.flatMap(s =>
-    [`${s.toLowerCase()}@kline_1h`, `${s.toLowerCase()}@kline_4h`]
-  ).join('/');
-
-  console.log('[WS] Connecting to Binance WebSocket...');
-  ws = new WebSocket(`${BINANCE_WS}/${streams}`);
-
-  ws.onopen = () => {
-    console.log('[WS] Connected to Binance WebSocket');
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-  };
-
-  ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.e === 'kline' && msg.k) {
-        const k = msg.k;
-        const symbol = k.s;
-        const timeframe = k.i as string;
-
-        if (onKline && (timeframe === '1h' || timeframe === '4h')) {
-          klineCount++;
-          if (klineCount % 20 === 0) console.log(`[WS] Klines: ${klineCount}, last: ${symbol} ${timeframe}`);
-          onKline(symbol, timeframe, {
-            time: k.t,
-            open: parseFloat(k.o),
-            high: parseFloat(k.h),
-            low: parseFloat(k.l),
-            close: parseFloat(k.c),
-            volume: parseFloat(k.v)
-          });
-        }
-      }
-    } catch {}
-  };
-
-  ws.onerror = () => console.warn('[WS] Error');
-  ws.onclose = () => {
-    if (!reconnectTimer) reconnectTimer = setTimeout(connect, 5000);
-  };
-}
-
-export function disconnect() {
-  if (ws) { ws.close(); ws = null; }
-  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-}
+const INTERVAL_MAP: Record<string, string> = {
+  '1h': '1H',
+  '4h': '4H',
+};
 
 export async function fetchHistoricalKlines(symbol: string, interval: string, limit = 200): Promise<Kline[]> {
+  const bar = INTERVAL_MAP[interval] || '1H';
+  const url = `${OKX}/history-candles?instId=${symbol}&bar=${bar}&limit=${limit}`;
+
   try {
-    const resp = await fetch(`${BINANCE_TESTNET}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data: any[][] = await resp.json();
-    console.log(`[Kline] ${symbol} ${interval}: ${data.length} klines`);
+    const json = await resp.json();
+
+    if (json.code !== '0' || !json.data) {
+      throw new Error(json.msg || 'Bad response');
+    }
+
+    const data = json.data as string[][];
+    console.log(`[Kline] ${symbol} ${interval}: ${data.length} candles from OKX`);
     return data.map(k => ({
-      time: k[0] as number,
+      time: parseInt(k[0]),
       open: parseFloat(k[1]),
       high: parseFloat(k[2]),
       low: parseFloat(k[3]),
       close: parseFloat(k[4]),
       volume: parseFloat(k[5])
-    }));
+    })).reverse();
   } catch (err) {
-    console.error(`[Kline] Failed: ${symbol} ${interval}:`, err);
+    console.error(`[Kline] Failed ${symbol} ${interval}:`, err);
     return [];
   }
 }
@@ -96,10 +56,15 @@ export async function fetchAllKlines(interval: string, limit = 200): Promise<Map
   for (const symbol of SYMBOLS) {
     const klines = await fetchHistoricalKlines(symbol, interval, limit);
     if (klines.length > 0) {
-      map.set(symbol, klines);
-      console.log(`[Kline] ${symbol} ${interval}: ${klines.length} klines loaded`);
+      map.set(SYMBOL_MAP[symbol], klines);
     }
   }
-  console.log(`[Kline] Total loaded: ${map.size}/${SYMBOLS.length} for ${interval}`);
+  console.log(`[Kline] Loaded ${map.size}/${SYMBOLS.length} for ${interval}`);
   return map;
 }
+
+export function subscribeToKlines(callback: (symbol: string, timeframe: string, kline: Kline) => void) {
+  console.log('[WS] Using OKX REST polling for klines');
+}
+
+export function disconnect() {}
