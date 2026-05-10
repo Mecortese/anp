@@ -8,12 +8,28 @@ interface Props {
     totalPnl5x: number;
   };
   leverage: 1 | 2 | 3 | 5;
+  userStats?: {
+    signalsTaken: number;
+    signalsWon: number;
+    signalsLost: number;
+    totalPnl1x: number;
+    totalPnl5x: number;
+  };
 }
 
-export function StatsPanel({ stats, leverage }: Props) {
+export function StatsPanel({ stats, leverage, userStats }: Props) {
   const pnl = leverage >= 5 ? stats.totalPnl5x : stats.totalPnl1x * leverage;
   const pnlColor = pnl >= 0 ? 'text-green-400' : 'text-red-400';
   const pnlSign = pnl >= 0 ? '+' : '';
+
+  const userPnl5x = userStats?.totalPnl5x ?? 0;
+  const userPnl1x = userStats?.totalPnl1x ?? 0;
+  const userPnl: number = leverage >= 5 ? userPnl5x : userPnl1x * leverage;
+  const userPnlColor = userPnl >= 0 ? 'text-green-400' : 'text-red-400';
+  const userPnlSign = userPnl >= 0 ? '+' : '';
+  const userWinRate = userStats && userStats.signalsTaken > 0
+    ? Math.round((userStats.signalsWon / userStats.signalsTaken) * 100)
+    : null;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -24,6 +40,12 @@ export function StatsPanel({ stats, leverage }: Props) {
       <StatCard label="Equity 5x" value={`${pnlSign}${stats.totalPnl5x.toFixed(2)}%`} color={stats.totalPnl5x >= 0 ? 'text-green-400' : 'text-red-400'} />
       <StatCard label="Best" value={`${leverage}x`} sub="leverage" />
       <StatCard label="Edge" value="4" sub="confirmed" />
+      {userStats && (
+        <>
+          <StatCard label="Mis Signals" value={userStats.signalsTaken.toString()} sub={userWinRate !== null ? `${userWinRate}% win` : undefined} color={userWinRate !== null && userWinRate >= 55 ? 'text-green-400' : 'text-white'} />
+          <StatCard label={`Mi P&L ${leverage}x`} value={`${userPnlSign}${userPnl.toFixed(1)}%`} color={userPnlColor} />
+        </>
+      )}
     </div>
   );
 }

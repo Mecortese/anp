@@ -6,13 +6,19 @@ export interface Signal {
   entryPrice: number;
   stopLoss: number;
   takeProfit: number;
+  slPct: number;
+  tpPct: number;
   confidence: number;
   timeframe: string;
   reason: string;
-  indicators?: {
-    rsi: number;
-    macd: { value: number; signal: number; histogram: number };
-  };
+  strategies?: string;
+  rsi?: number;
+  macd?: { value: number; signal: number; histogram: number };
+  edges?: string[];
+  fundingEdge?: boolean;
+  liquidityEdge?: boolean;
+  structureEdge?: boolean;
+  momentumEdge?: boolean;
 }
 
 export interface Ticker {
@@ -31,6 +37,15 @@ export interface Asset {
   change24h: number;
   volume24h: number;
   lastSignal?: Signal;
+}
+
+export interface LeaderboardEntry {
+  oderId: string;
+  taken: number;
+  won: number;
+  lost: number;
+  pnl: number;
+  winRate: number;
 }
 
 export type WSMessage = {

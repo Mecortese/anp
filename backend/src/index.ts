@@ -1,5 +1,6 @@
 import { app } from './routes/api.js';
 import { signalDb } from './services/database.js';
+import { userSignalsRouter } from './routes/userSignals.js';
 import { mkdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -20,6 +21,8 @@ const PORT = parseInt(process.env.PORT || '3000');
 async function main() {
   console.log('Crypto Signals Server Starting...');
   await signalDb.init();
+
+  app.use(userSignalsRouter());
 
   http.createServer(app).listen(PORT, '0.0.0.0', () => {
     console.log(`Server on port ${PORT}`);
