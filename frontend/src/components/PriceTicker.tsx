@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const OKX_TICKER = 'https://www.okx.com/api/v5/market/ticker';
-
+const BACKEND = '';
 const SYMBOLS = [
   { okx: 'BTC-USDT', bin: 'BTCUSDT', name: 'BTC' },
   { okx: 'ETH-USDT', bin: 'ETHUSDT', name: 'ETH' },
@@ -30,13 +29,12 @@ export function PriceTicker() {
       try {
         const results: PriceData[] = [];
         for (const s of SYMBOLS) {
-          const resp = await fetch(`${OKX_TICKER}?instId=${s.okx}`);
+          const resp = await fetch(`${BACKEND}/api/ticker?symbol=${s.okx}`);
           if (!resp.ok) continue;
           const json = await resp.json();
-          if (json.code !== '0' || !json.data?.[0]) continue;
-          const d = json.data[0];
-          const last = parseFloat(d.last);
-          const open24h = parseFloat(d.open24h);
+          if (!json.last) continue;
+          const last = parseFloat(json.last);
+          const open24h = parseFloat(json.open24h);
           const change = open24h > 0 ? ((last - open24h) / open24h) * 100 : 0;
           results.push({ symbol: s.bin, name: s.name, price: last, change24h: Math.round(change * 100) / 100 });
         }
