@@ -1,11 +1,16 @@
+database:
+  name: crypto-signals-db
+  plan: free
+  databaseName: crypto_signals
+  ipAllowList: []
+
 services:
-  - type: web
-    name: crypto-signals
+  - name: crypto-signals
     env: node
     region: oregon
     plan: free
     buildCommand: cd backend && npm install && npm run build
-    startCommand: sh -c "cd backend && npm start"
+    startCommand: cd backend && node dist/index.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
