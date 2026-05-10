@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Kline, getIndicators, evaluateStrategies } from '../services/indicators';
 import { fetchAllKlines, subscribeToKlines, disconnect, SYMBOLS } from '../services/klineService';
 
-const API_URL = '';
+const API_URL = 'https://crypto-signals-idfn.onrender.com';
 
 export interface Signal {
   id: string;

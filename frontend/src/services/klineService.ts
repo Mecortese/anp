@@ -1,6 +1,7 @@
 import type { Kline } from './indicators';
 
-const BACKEND_URL = '';
+const BACKEND = 'https://crypto-signals-idfn.onrender.com';
+
 const OKX_SYMBOLS: Record<string, string> = {
   'BTCUSDT': 'BTC-USDT', 'ETHUSDT': 'ETH-USDT', 'BNBUSDT': 'BNB-USDT',
   'SOLUSDT': 'SOL-USDT', 'XRPUSDT': 'XRP-USDT', 'ADAUSDT': 'ADA-USDT',
@@ -13,13 +14,13 @@ export async function fetchHistoricalKlines(symbol: string, interval: string, li
   const okxSymbol = OKX_SYMBOLS[symbol];
   if (!okxSymbol) return [];
   const bar = interval === '4h' ? '4H' : '1H';
-  const url = `${BACKEND_URL}/api/klines?symbol=${okxSymbol}&interval=${bar}&limit=${limit}`;
+  const url = `${BACKEND}/api/klines?symbol=${okxSymbol}&interval=${bar}&limit=${limit}`;
 
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data: string[][] = await resp.json();
-    console.log(`[Kline] ${symbol} ${interval}: ${data.length} candles`);
+    console.log(`[Kline] ${symbol} ${interval}: ${data.length} candles via Render`);
     return data.map(k => ({
       time: parseInt(k[0]),
       open: parseFloat(k[1]),
@@ -45,7 +46,7 @@ export async function fetchAllKlines(interval: string, limit = 200): Promise<Map
 }
 
 export function subscribeToKlines(callback: (symbol: string, timeframe: string, kline: Kline) => void) {
-  console.log('[WS] Using backend proxy for klines');
+  console.log('[WS] Using Render backend proxy for klines');
 }
 
 export function disconnect() {}

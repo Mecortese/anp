@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-const BACKEND = '';
+const BACKEND = 'https://crypto-signals-idfn.onrender.com';
+
 const SYMBOLS = [
   { okx: 'BTC-USDT', bin: 'BTCUSDT', name: 'BTC' },
   { okx: 'ETH-USDT', bin: 'ETHUSDT', name: 'ETH' },
