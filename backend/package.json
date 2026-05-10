@@ -3,15 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "npx --yes tsc",
+    "build": "npx tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
+    "@types/ws": "^8.18.1",
     "axios": "^1.6.5",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "sql.js": "^1.10.2",
-    "typescript": "^6.0.3",
+    "typescript": "^5.9.3",
     "ws": "^8.16.0"
   }
 }
